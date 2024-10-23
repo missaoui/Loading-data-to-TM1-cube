@@ -1,0 +1,148 @@
+#--------------------------------------------------------------------------------------------------------------------------
+# Process      : 
+# Description : Alimentation du cube 
+#
+# Suivi des modifications
+# YMI - 13/09/2013 - Création
+#--------------------------------------------------------------------------------------------------------------------------
+
+#-- Déclaration des cubes cibles et sources
+zCubeSource = 'CRM_BI';
+zCubeParam = 'Z_PARAMETRE';
+zCubeCible = 'CRM_BI_SYNTH_DP_VM';
+zCube_Couleurs='CRM_PARAM_VISI_QUAD';
+
+
+#----------------------------------------------------------Debug ----------------------------------------------------------------
+
+ProcessName = GetProcessName();
+iDebug=0;
+zDebugFileProlog = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Prolog.txt';
+zDebugFileMetadata = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Metadata.txt';
+zDebugFileData = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Data.txt';
+zDebugFileEpilog = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Epilog.txt';
+
+#---------------------------------------------------------- Paramétrage ----------------------------------------------------------------
+
+OnMinorErrorDoItemSkip =1 ;
+
+
+CubeLockOverride(1);
+
+
+#-- Initialisation des compteurs
+
+#-- nombre d'enregistrements lus
+ind_read=0;
+
+#-- nombre d'enregistrements intégrés
+ind_integr=0;
+
+
+#-------------------------------------------------------- Définition de la vue source ----------------------------------------------------
+
+
+P_NAME=ProcessName;
+
+
+#-- Suppresion de la vue P_NAME
+ViewDestroy(zCubeSource,P_NAME);
+
+#-- Creation de la vue
+ViewCreate(zCubeSource,P_NAME);
+
+
+
+
+zAnEnCours = CELLGETS( 'Z_PARAMETRE', 'Année en cours', 'information' );
+
+zPhaseEnCours = 'R_' | zAnEnCours;
+
+
+
+SubsetDestroy('CRM_PHASE_ANNEE',P_NAME);
+#-- Création du subset
+SubsetCreate('CRM_PHASE_ANNEE',P_NAME);
+SubsetElementInsert('CRM_PHASE_ANNEE',P_NAME,zPhaseEnCours,1);
+
+SubsetDestroy('PERIODE',P_NAME);
+#-- Création du subset
+SubsetCreate('PERIODE',P_NAME);
+
+zmois=CELLGETS( 'Z_PARAMETRE', 'mois en cours', 'information' );
+SubsetElementInsert('PERIODE',P_NAME,zmois,1);
+
+
+
+#on va traiter tous les secteurs
+#-- Suppression du subset
+SubsetDestroy('CRM_GEOGRAPHIE',P_NAME);
+#-- Création du subset
+SubsetCreate('CRM_GEOGRAPHIE',P_NAME);
+i=1;
+WHILE(i<dimsiz('CRM_GEOGRAPHIE')+1);
+  Elem=dimnm('CRM_GEOGRAPHIE',i);
+  if(ELLEV('CRM_GEOGRAPHIE', Elem)=0);
+		SubsetElementInsert('CRM_GEOGRAPHIE',P_NAME,Elem,1);
+   endif;
+   i=i+1;
+END;
+
+
+
+
+
+
+#-- Définition des paramètres de la vue
+#-- On ne prend pas en compte les zéros dans la vue
+ViewSetSkipCalcs(zCubeSource,P_NAME,0);
+ViewSetSkipRuleValues(zCubeSource,P_NAME,0);
+ViewSetSkipZeroes(zCubeSource,P_NAME,1);
+
+#-- Affectation de la vue construite en tant que source de données
+DataSourceNameForServer=zCubeSource;
+DataSourceCubeView=P_NAME;
+
+
+
+#-------------------------------------------------------- Définition de la vue cible ----------------------------------------------------
+
+P_NAME_RAZ=P_NAME | '_RAZ';
+
+#-- Suppression de la vue
+ViewDestroy(zCubeCible,P_NAME_RAZ);
+
+#-- Création de la vue
+ViewCreate(zCubeCible,P_NAME_RAZ);
+
+
+#-- Suppression du subset
+SubsetDestroy('CRM_COULEUR',P_NAME_RAZ);
+#-- Création du subset
+SubsetCreate('CRM_COULEUR',P_NAME_RAZ);
+i=1;
+WHILE(i<dimsiz('CRM_COULEUR')+1);
+   Elem=dimnm('CRM_COULEUR',i);
+   if(ELLEV('CRM_COULEUR', Elem)=0);
+			SubsetElementInsert('CRM_COULEUR',P_NAME_RAZ,Elem,1);
+   endif;
+   i=i+1;
+END;
+
+
+
+ViewSubsetAssign(zCubeCible,P_NAME_RAZ,'CRM_COULEUR',P_NAME_RAZ);
+
+
+
+#------------------------------------------------- Consignation ---------------------------------------------
+OldCubeLogChanges = CUBEGETLOGCHANGES(zCubeCible);
+CUBESETLOGCHANGES(zCubeCible, 0);
+
+
+
+
+#----------------------------------------------- initialisation de la vue cible---------------------------------
+ViewZeroOut(zCubeCible,P_NAME_RAZ);
+
+
