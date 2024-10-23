@@ -1,0 +1,110 @@
+#--------------------------------------------------------------------------------------------------------------------------
+# Process      : 
+# Description : Alimentation du cube 
+#
+# Suivi des modifications
+# YMI - 13/09/2013 - Création
+#--------------------------------------------------------------------------------------------------------------------------
+
+zCubeParam = 'Z_PARAMETRE';
+zCubeCible = 'CRM_BI_SYNTH_DP';
+
+
+#----------------------------------------------------------Debug ----------------------------------------------------------------
+
+ProcessName = GetProcessName();
+iDebug=0;
+zDebugFileProlog = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Prolog.txt';
+zDebugFileMetadata = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Metadata.txt';
+zDebugFileData = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Data.txt';
+zDebugFileEpilog = CellGetS( zCubeParam, 'ITF_Directory', 'information') | '\OUTPUT\CTRL\' | ProcessName  | '_Epilog.txt';
+
+#---------------------------------------------------------- Paramétrage ----------------------------------------------------------------
+
+OnMinorErrorDoItemSkip =1 ;
+
+
+CubeLockOverride(1);
+
+
+#-- Initialisation des compteurs
+
+#-- nombre d'enregistrements lus
+ind_read=0;
+
+#-- nombre d'enregistrements intégrés
+ind_integr=0;
+
+
+#-------------------------------------------------------- Définition de la vue d'arrivée----------------------------------------------------
+
+P_NAME=ProcessName;
+
+#-- Suppresion de la vue P_NAME
+ViewDestroy(zCubeSource,P_NAME);
+
+#-- Creation de la vue
+ViewCreate(zCubeSource,P_NAME);
+
+
+
+
+zAnEnCours = CELLGETS( 'Z_PARAMETRE', 'Année en cours', 'information' );
+
+zPhaseEnCours = 'R_' | zAnEnCours;
+zPhaseObjectif = 'O_' | zAnEnCours;
+
+
+SubsetDestroy('CRM_PHASE_ANNEE',P_NAME);
+#-- Création du subset
+SubsetCreate('CRM_PHASE_ANNEE',P_NAME);
+SubsetElementInsert('CRM_PHASE_ANNEE',P_NAME,zPhaseEnCours,1);
+
+SubsetDestroy('PERIODE',P_NAME);
+#-- Création du subset
+SubsetCreate('PERIODE',P_NAME);
+
+#on charge seulement le mois en cours
+zmois=CELLGETS( 'Z_PARAMETRE', 'mois en cours', 'information' );
+SubsetElementInsert('PERIODE',P_NAME,zmois,1);
+
+
+SubsetDestroy('CRM_ENSEIGNE',P_NAME);
+#-- Création du subset
+SubsetCreate('CRM_ENSEIGNE',P_NAME);
+SubsetElementInsert('CRM_ENSEIGNE',P_NAME,'Total clients enseigne',1);
+
+
+#-- Suppression du subset
+SubsetDestroy('CRM_GEOGRAPHIE',P_NAME_RAZ_SOURCE);
+#-- Création du subset
+SubsetCreate('CRM_GEOGRAPHIE',P_NAME_RAZ_SOURCE);
+i=1;
+WHILE(i<dimsiz('CRM_GEOGRAPHIE')+1);
+  Elem=dimnm('CRM_GEOGRAPHIE',i);
+  if(ELLEV('CRM_GEOGRAPHIE', Elem)=0);
+		SubsetElementInsert('CRM_GEOGRAPHIE',P_NAME_RAZ_SOURCE,Elem,1);
+   endif;
+   i=i+1;
+END;
+
+
+#------------------------------------------------- Consignation ---------------------------------------------
+OldCubeLogChanges = CUBEGETLOGCHANGES(zCubeCible);
+CUBESETLOGCHANGES(zCubeCible, 0);
+
+
+
+#----------------------------------------------- initialisation de la vue cible---------------------------------
+ViewZeroOut(zCubeCible,P_NAME_RAZ);
+
+
+#-----------------------------------------------  Partie SQL ----------------------------------------------------
+
+#-- Paramètres de la Source SQL
+zODBC = CellGetS( zCubeParam, 'ODBC_Source', 'information');
+zClient = CellGetS( zCubeParam, 'ODBC_Client', 'information');
+zPassword = CellGetS( zCubeParam, 'ODBC_Password', 'information');
+
+#-- Creation de la requete SQL
+Query = 'SELECT * FROM dbo.V_XCL_CRM_BI_QTE_CONDITIONNEMENT  WHERE RCAN_COD in (4,5)      ';
