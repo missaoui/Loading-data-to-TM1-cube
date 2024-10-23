@@ -1,0 +1,6 @@
+
+#------(laisser cette instruction en derniere position dans chaque if)
+
+#-- Boucle d'integration 
+
+ind_integr = ind_integr + 1;

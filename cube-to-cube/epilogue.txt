@@ -1,0 +1,21 @@
+
+#-- Remise en place de la consignation
+CUBESETLOGCHANGES(zCubeCible, OldCubeLogChanges);
+
+
+
+#-- Suppression de la vue
+ViewDestroy(zCubeSource,P_NAME);
+
+
+
+
+#-- Suppression des subsets
+
+
+
+SubsetDestroy('PERIODE',P_NAME);
+SubsetDestroy('CRM_PHASE_ANNEE',P_NAME);
+
+SubsetDestroy('CRM_ENSEIGNE',P_NAME);
+SubsetDestroy('CRM_GROUPEMENT',P_NAME);

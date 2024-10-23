@@ -1,0 +1,2 @@
+#-- Compteur de lecture
+ind_read = ind_read + 1;
